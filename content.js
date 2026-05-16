@@ -105,13 +105,31 @@ function processAdList() {
         if (ad.dataset.kaProcessed) return;
         
         const adId = ad.dataset.adid;
-        const userId = ad.dataset.userid; // Note: Check if this is always available
+        
+        // Try to find userId in links within the ad (e.g. user name link or 'more ads' link)
+        const userIdLink = ad.querySelector('a[href*="userId="]');
+        let userId = ad.dataset.userid;
+        
+        if (userIdLink) {
+            try {
+                const urlObj = new URL(userIdLink.href, window.location.origin);
+                const urlParams = new URLSearchParams(urlObj.search);
+                userId = urlParams.get('userId') || userId;
+            } catch (e) {
+                // Silently fail, might use fallback
+            }
+        }
+
         const userName = ad.querySelector('.aditem-main--user--name')?.innerText.trim() || 
                          ad.querySelector('.aditem-main--top--left')?.innerText.split('\n')[0].trim();
 
         // 1. Check if blocked or hidden
-        if (hiddenAds.includes(adId) || blockedUsers.some(u => u.id === userId)) {
-            ad.closest('li.ad-listitem')?.classList.add('ka-hidden');
+        if (hiddenAds.includes(adId) || (userId && blockedUsers.some(u => u.id === userId))) {
+            const listItem = ad.closest('li.ad-listitem') || ad.closest('.ad-listitem');
+            if (listItem) {
+                listItem.classList.add('ka-hidden');
+                listItem.style.display = 'none'; // Force hide
+            }
             return;
         }
 
