@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Kleinanzeigen Plus",
+  "version": "1.0.0",
+  "description": "Erweitert Kleinanzeigen um User-Blocking, Ad-Hiding und 'Gesehen' Markierungen.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.kleinanzeigen.de/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

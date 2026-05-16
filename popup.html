@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kleinanzeigen Plus</title>
+    <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="plus">K</span><span>leinzeigen Plus</span>
+            </div>
+            <div class="badge">Active</div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-value" id="count-blocked">0</span>
+                <span class="stat-label">Blockiert</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="count-hidden">0</span>
+                <span class="stat-label">Ausgeblendet</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="count-seen">0</span>
+                <span class="stat-label">Gesehen</span>
+            </div>
+        </div>
+
+        <main>
+            <section>
+                <h3>Blockierte User</h3>
+                <div id="blocked-list" class="list-container">
+                    <div class="empty-state">Keine User blockiert</div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <button id="clear-seen" class="btn-secondary">Gesehen-Liste leeren</button>
+            <button id="clear-hidden" class="btn-secondary">Ausblend-Liste leeren</button>
+        </footer>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
