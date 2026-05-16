@@ -73,12 +73,33 @@ function processAdDetail() {
             }
         }
 
-        // Try to find user name via multiple common selectors
-        const userName = document.querySelector('#viewad-contact-user-name')?.innerText.trim() || 
-                         document.querySelector('.userprofile-name')?.innerText.trim() ||
-                         document.querySelector('#viewad-contact h2')?.innerText.trim() ||
-                         document.querySelector('.text-contact h2')?.innerText.trim() ||
-                         'Unbekannt';
+        // Try to find user name via multiple selectors, filtering out system texts
+        let userName = 'Unbekannt';
+        const nameCandidates = [
+            document.querySelector('#viewad-contact-user-name'),
+            document.querySelector('.userprofile-name'),
+            document.querySelector('#viewad-contact h2'),
+            document.querySelector('.text-contact h2'),
+            document.querySelector('#viewad-contact .user-name'),
+            document.querySelector('a[href*="userId="] b'),
+            document.querySelector('.userprofile-details a')
+        ];
+
+        const systemTexts = ['sicher bezahlen', 'privater nutzer', 'gewerblicher nutzer', 'aktiv seit', 'zufriedenheit'];
+
+        for (let candidate of nameCandidates) {
+            if (candidate) {
+                let text = candidate.innerText.trim();
+                if (text && text.length > 1) {
+                    // Check if this text is a known system string
+                    const isSystemText = systemTexts.some(sys => text.toLowerCase().includes(sys));
+                    if (!isSystemText) {
+                        userName = text;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (userId) {
             const actionsDiv = document.createElement('div');
