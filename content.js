@@ -52,9 +52,33 @@ function processAdDetail() {
     // Inject Block Button in User Profile Section
     const userSection = document.querySelector('#viewad-contact');
     if (userSection && !document.querySelector('.ka-detail-actions')) {
-        const userIdLink = document.querySelector('a[href*="userId="]');
-        const userId = userIdLink ? new URLSearchParams(new URL(userIdLink.href, window.location.origin).search).get('userId') : null;
-        const userName = document.querySelector('#viewad-contact-user-name')?.innerText.trim() || 'Unbekannt';
+        
+        // Try to extract user ID from various links
+        const userIdLink = document.querySelector('a[href*="userId="]') || 
+                          document.querySelector('a[href*="/s-bestandsliste.html"]');
+        
+        let userId = null;
+        if (userIdLink) {
+            try {
+                const urlObj = new URL(userIdLink.href, window.location.origin);
+                const urlParams = new URLSearchParams(urlObj.search);
+                userId = urlParams.get('userId');
+                
+                // Fallback for direct string split if URLSearchParams fails or param is weird
+                if (!userId && userIdLink.href.includes('userId=')) {
+                    userId = userIdLink.href.split('userId=')[1].split('&')[0].split('#')[0];
+                }
+            } catch (e) {
+                console.error("KA Plus: Error parsing userId", e);
+            }
+        }
+
+        // Try to find user name via multiple common selectors
+        const userName = document.querySelector('#viewad-contact-user-name')?.innerText.trim() || 
+                         document.querySelector('.userprofile-name')?.innerText.trim() ||
+                         document.querySelector('#viewad-contact h2')?.innerText.trim() ||
+                         document.querySelector('.text-contact h2')?.innerText.trim() ||
+                         'Unbekannt';
 
         if (userId) {
             const actionsDiv = document.createElement('div');
