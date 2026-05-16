@@ -78,19 +78,21 @@ function processAdDetail() {
         const nameCandidates = [
             document.querySelector('#viewad-contact-user-name'),
             document.querySelector('.userprofile-name'),
+            document.querySelector('#viewad-contact a[href*="s-bestandsliste.html"]'), // Specific fix for Dana-case
             document.querySelector('#viewad-contact h2'),
             document.querySelector('.text-contact h2'),
             document.querySelector('#viewad-contact .user-name'),
-            document.querySelector('a[href*="userId="] b'),
-            document.querySelector('.userprofile-details a')
+            document.querySelector('.userprofile-details a'),
+            document.querySelector('a[href*="userId="] b')
         ];
 
-        const systemTexts = ['sicher bezahlen', 'privater nutzer', 'gewerblicher nutzer', 'aktiv seit', 'zufriedenheit'];
+        const systemTexts = ['sicher bezahlen', 'privater nutzer', 'gewerblicher nutzer', 'aktiv seit', 'zufriedenheit', 'anzeigen online'];
 
         for (let candidate of nameCandidates) {
             if (candidate) {
-                let text = candidate.innerText.trim();
-                if (text && text.length > 1) {
+                // Use textContent and replace multiple spaces/newlines to get clean name
+                let text = candidate.textContent.replace(/\s+/g, ' ').trim();
+                if (text && text.length > 1 && text.length < 50) {
                     // Check if this text is a known system string
                     const isSystemText = systemTexts.some(sys => text.toLowerCase().includes(sys));
                     if (!isSystemText) {
