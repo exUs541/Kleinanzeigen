@@ -5,35 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kleinanzeigen Plus</title>
     <link rel="stylesheet" href="popup.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
             <div class="logo">
-                <span class="plus">K</span><span>leinzeigen Plus</span>
+                <span class="plus">K+</span><span>Kleinanzeigen Plus</span>
             </div>
-            <div class="badge">Active</div>
+            <div class="badge">v1.1.0</div>
         </header>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-value" id="count-blocked">0</span>
-                <span class="stat-label">Blockiert</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="count-hidden">0</span>
-                <span class="stat-label">Ausgeblendet</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="count-seen">0</span>
-                <span class="stat-label">Gesehen</span>
-            </div>
-        </div>
+        <!-- Navigation Tabs -->
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="tab-filter">Filter</button>
+            <button class="tab-btn" data-tab="tab-helpers">Helpers</button>
+            <button class="tab-btn" data-tab="tab-templates">Vorlagen</button>
+            <button class="tab-btn" data-tab="tab-blocked">Blocked</button>
+        </nav>
 
         <main>
-            <section>
-                <h3>Blockierte User</h3>
+            <!-- Tab 1: Filter & Ads -->
+            <section id="tab-filter" class="tab-content active">
+                <div class="settings-group">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-hide-sponsored">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Werbung/Banner ausblenden</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-hide-top">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Top-Anzeigen komplett ausblenden</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-shift-top">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Top-Anzeigen ans Ende verschieben</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="blacklist-input">Titel-Filter (Wort-Blacklist, eins pro Zeile):</label>
+                    <textarea id="blacklist-input" rows="4" placeholder="z.B. defekt, Bastler, Tausch..."></textarea>
+                </div>
+            </section>
+
+            <!-- Tab 2: Browsing Helpers -->
+            <section id="tab-helpers" class="tab-content">
+                <div class="settings-group">
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-image-previews">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Bildervorschau bei Hover</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-enable-maps">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Google Maps Link für Orte</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-price-compare">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Sparpilot Preisvergleich anzeigen</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-enable-notes">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Eigene Notizen für Anzeigen</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="opt-infinite-scroll">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Unendliches Scrollen (Infinite Scroll)</span>
+                    </label>
+                </div>
+
+                <div class="stats-mini">
+                    <div class="mini-stat">
+                        <span id="count-seen" class="value">0</span>
+                        <span class="label">Gesehen</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span id="count-hidden" class="value">0</span>
+                        <span class="label">Manuell versteckt</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Templates & Snippets -->
+            <section id="tab-templates" class="tab-content">
+                <div class="templates-header">
+                    <h4>Gespeicherte Anzeigenvorlagen</h4>
+                </div>
+                <div id="templates-list" class="list-container templates-container">
+                    <div class="empty-state">Keine Vorlagen gespeichert</div>
+                </div>
+
+                <div class="snippets-header" style="margin-top: 16px;">
+                    <h4>Chat-Antwortvorlagen (Snippets)</h4>
+                </div>
+                <div id="snippets-list" class="list-container snippets-container">
+                    <!-- Dynamic chat snippets list -->
+                </div>
+                <button id="add-snippet-btn" class="btn-primary" style="margin-top: 6px;">+ Snippet hinzufügen</button>
+            </section>
+
+            <!-- Tab 4: Blocked Users -->
+            <section id="tab-blocked" class="tab-content">
+                <div class="blocked-header">
+                    <h4>Blockierte Verkäufer</h4>
+                </div>
                 <div id="blocked-list" class="list-container">
                     <div class="empty-state">Keine User blockiert</div>
                 </div>
@@ -41,8 +123,11 @@
         </main>
 
         <footer>
-            <button id="clear-seen" class="btn-secondary">Gesehen-Liste leeren</button>
-            <button id="clear-hidden" class="btn-secondary">Ausblend-Liste leeren</button>
+            <div class="footer-actions">
+                <button id="clear-seen" class="btn-secondary">Gesehen-Liste leeren</button>
+                <button id="clear-hidden" class="btn-secondary">Ausblend-Liste leeren</button>
+                <button id="reset-settings" class="btn-danger">Einstellungen zurücksetzen</button>
+            </div>
         </footer>
     </div>
     <script src="popup.js"></script>

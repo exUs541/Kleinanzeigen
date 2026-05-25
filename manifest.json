@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Kleinanzeigen Plus",
-  "version": "1.0.0",
-  "description": "Erweitert Kleinanzeigen um User-Blocking, Ad-Hiding und 'Gesehen' Markierungen.",
+  "version": "1.1.0",
+  "description": "Erweitert Kleinanzeigen um Ad-Filtering, Image-Previews, Vorlagen, Preissuche uvm.",
   "permissions": [
-    "storage"
+    "storage",
+    "downloads"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -13,6 +14,9 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

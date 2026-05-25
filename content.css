@@ -1,13 +1,16 @@
-/* Kleinanzeigen Plus - Content Styles */
+/* Kleinanzeigen Plus - Webpage Styles */
 
 :root {
     --ka-primary: #85b014;
     --ka-primary-hover: #6a8d10;
-    --ka-danger: #ff4d4d;
-    --ka-secondary: #f4f4f4;
-    --ka-glass-bg: rgba(255, 255, 255, 0.8);
-    --ka-glass-border: rgba(255, 255, 255, 0.3);
-    --ka-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    --ka-danger: #ef4444;
+    --ka-danger-hover: #b91c1c;
+    --ka-bg-glass: rgba(255, 255, 255, 0.95);
+    --ka-border: #e2e8f0;
+    --ka-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --ka-note-yellow: #fef08a;
+    --ka-note-border: #facc15;
+    --ka-note-text: #854d0e;
 }
 
 /* Seen Indicator */
@@ -24,20 +27,21 @@
     box-shadow: 0 2px 4px rgba(133, 176, 20, 0.3);
 }
 
-.aditem.ka-seen {
+.aditem.ka-seen, article[data-adid].ka-seen {
     opacity: 0.7;
-    background-color: #f9f9f9 !important;
+    background-color: #f8fafc !important;
     transition: opacity 0.3s ease;
 }
 
-.aditem.ka-seen:hover {
+.aditem.ka-seen:hover, article[data-adid].ka-seen:hover {
     opacity: 1;
 }
 
-/* Control Buttons in List */
+/* Control Buttons in Listing Cards */
 .ka-controls-container {
     display: flex;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
     margin-top: 10px;
 }
 
@@ -45,29 +49,40 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid transparent;
     font-weight: 500;
-    gap: 6px;
+    gap: 4px;
 }
 
 .ka-btn-hide {
-    background: #eee;
-    color: #444;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 20;
+    margin: 0;
+    background: rgba(248, 250, 252, 0.95);
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
 }
 
 .ka-btn-hide:hover {
-    background: #e0e0e0;
-    transform: translateY(-1px);
+    background: #e2e8f0;
+    transform: none;
 }
 
 .ka-btn-block {
     background: #fee2e2;
     color: #b91c1c;
+    border: 1px solid #fecaca;
 }
 
 .ka-btn-block:hover {
@@ -75,26 +90,100 @@
     transform: translateY(-1px);
 }
 
-/* On Ad Detail Page */
+.ka-btn-map {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.ka-btn-map:hover {
+    background: #dbeafe;
+    transform: translateY(-1px);
+}
+
+/* Hidden state for items */
+.ka-hidden {
+    display: none !important;
+}
+
+/* Image Preview Previews */
+.ka-image-preview-dots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 6px;
+    border-radius: 12px;
+    margin: 0 auto;
+    width: max-content;
+    max-width: 90%;
+    overflow-x: auto;
+}
+
+.ka-image-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ka-image-dot:hover, .ka-image-dot.active {
+    background: #fff;
+    transform: scale(1.2);
+}
+
+/* Notes displayed on listing cards */
+.ka-list-note {
+    background: var(--ka-note-yellow);
+    border-left: 4px solid var(--ka-note-border);
+    color: var(--ka-note-text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 8px;
+    font-style: italic;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Detail Page Action Section */
 .ka-detail-actions {
     background: white;
-    border: 1px solid #eee;
+    border: 1px solid var(--ka-border);
     padding: 16px;
     border-radius: 12px;
     margin-bottom: 20px;
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     box-shadow: var(--ka-shadow);
+}
+
+.ka-detail-row {
+    display: flex;
+    gap: 8px;
 }
 
 .ka-detail-btn {
     flex: 1;
-    padding: 10px;
+    padding: 8px 12px;
     border-radius: 8px;
     text-align: center;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 13px;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .ka-detail-btn-block {
@@ -103,21 +192,247 @@
 }
 
 .ka-detail-btn-block:hover {
-    filter: brightness(0.9);
+    background: var(--ka-danger-hover);
     transform: scale(1.02);
 }
 
-/* Hidden elements */
-.ka-hidden {
-    display: none !important;
+.ka-detail-btn-download {
+    background: var(--ka-primary);
+    color: white;
 }
 
-/* Animations */
+.ka-detail-btn-download:hover {
+    background: var(--ka-primary-hover);
+    transform: scale(1.02);
+}
+
+.ka-detail-btn-map {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.ka-detail-btn-map:hover {
+    background: #dbeafe;
+    transform: scale(1.02);
+}
+
+.ka-detail-btn-template {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.ka-detail-btn-template:hover {
+    background: #e2e8f0;
+    transform: scale(1.02);
+}
+
+/* Notes Section on Detail Page */
+.ka-note-section {
+    background: white;
+    border: 1px solid var(--ka-border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--ka-shadow);
+}
+
+.ka-note-section h3 {
+    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ka-note-textarea {
+    width: 100%;
+    height: 80px;
+    padding: 10px;
+    border: 1px solid var(--ka-border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    transition: border-color 0.2s;
+    background: #faf8f5;
+}
+
+.ka-note-textarea:focus {
+    outline: none;
+    border-color: var(--ka-note-border);
+    background: #fffff8;
+}
+
+/* Sparpilot Widget on Detail Page */
+.ka-sparpilot-widget {
+    background: #ffffff;
+    border: 1px solid var(--ka-border);
+    border-top: 4px solid var(--ka-primary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--ka-shadow);
+}
+
+.ka-sparpilot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.ka-sparpilot-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ka-sparpilot-logo {
+    color: var(--ka-primary);
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.ka-sparpilot-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ka-compare-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: #475569;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.ka-compare-link:hover {
+    background: var(--ka-primary);
+    color: white;
+    border-color: var(--ka-primary);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+/* Chat Snippets */
+.ka-snippets-container {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ka-snippet-pill {
+    padding: 6px 12px;
+    border-radius: 16px;
+    background: white;
+    border: 1px solid #cbd5e1;
+    font-size: 12px;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.ka-snippet-pill:hover {
+    background: var(--ka-primary);
+    color: white;
+    border-color: var(--ka-primary);
+}
+
+/* Listing Creation Page Injector */
+.ka-template-selector-container {
+    background: #f8fafc;
+    border: 1px solid var(--ka-border);
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ka-template-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #475569;
+}
+
+.ka-template-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-size: 13px;
+    flex: 1;
+    max-width: 400px;
+}
+
+/* Scraper Export Button */
+.ka-export-btn-container {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ka-export-btn {
+    background: #334155;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ka-export-btn:hover {
+    background: #1e293b;
+}
+
+/* Seller Badge display on cards */
+.ka-seller-info-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 6px;
+}
+
+/* Fade-in animations */
 @keyframes ka-fade-in {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-.aditem {
+.aditem, article[data-adid] {
     animation: ka-fade-in 0.4s ease-out;
+    position: relative;
 }
