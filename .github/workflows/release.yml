@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload and Publish to Chrome Web Store
         run: |
-          npx chrome-webstore-upload-cli@latest upload \
+          npx chrome-webstore-upload-cli@3.2.0 upload \
             --source extension.zip \
             --extension-id "${{ secrets.CHROME_EXTENSION_ID }}" \
             --client-id "${{ secrets.CHROME_CLIENT_ID }}" \
