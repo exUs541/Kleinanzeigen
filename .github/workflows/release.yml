@@ -1,74 +1,325 @@
-name: Chrome Extension Release
+name: Store Release
+
+# Pushing to the default branch publishes this extension to the Chrome Web Store and,
+# when its credentials are configured, to Microsoft Edge Add-ons.
+#
+# Both stores only accept a package whose manifest version is higher than the live one,
+# so a push releases exactly when "version" in manifest.json changed. Everything else
+# (docs, README, store artwork, this pipeline) is ignored. Details: .github/RELEASING.md
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, master]
+    paths-ignore:
+      - '.github/**'
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - 'images/**'
+      - 'pictures/**'
+      - 'store-assets/**'
+      - 'WebStore/**'
+  # Run by hand from the Actions tab, e.g. after renewing a store credential, when
+  # there is no code change to push. "Dry run" builds and verifies the package only.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and verify the package only - do not publish'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One release at a time: two overlapping uploads would race each other at the store.
+concurrency:
+  group: store-release
+  cancel-in-progress: false
 
 jobs:
-  release:
+  package:
+    name: Build package
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+      version: ${{ steps.pkg.outputs.version }}
+      name: ${{ steps.pkg.outputs.name }}
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Holt den gesamten Git-Verlauf, um Commits zu analysieren
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Extract Extension Metadata
-        id: meta
+      # Ships only what the extension needs at runtime and fails if anything the
+      # manifest or its pages reference is missing from the package.
+      - name: Build and verify package
+        id: pkg
         run: |
-          # Extrahiere Version aus manifest.json
-          VERSION=$(node -e "console.log(require('./manifest.json').version)")
-          NAME=$(node -e "console.log(require('./manifest.json').name)")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "name=$NAME" >> $GITHUB_OUTPUT
-          
-          # Ordnername ermitteln (z.B. SiteBlocker)
-          REPO_NAME=$(basename $GITHUB_REPOSITORY)
-          echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
-          
-          # Letzte Commits holen
-          COMMITS=$(git log -n 5 --oneline)
-          # Commits fuer JSON maskieren
-          COMMITS_JSON=$(echo "$COMMITS" | jq -R -s '.')
-          echo "commits=$COMMITS_JSON" >> $GITHUB_OUTPUT
+          node .github/scripts/package-extension.mjs --list package-files.txt
+          rm -f extension.zip
+          zip -X -q extension.zip -@ < package-files.txt
+          unzip -l extension.zip | tail -n 1
 
-      - name: Zip Extension
+      - name: Decide whether this run publishes
+        id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+          NAME: ${{ steps.pkg.outputs.name }}
+          FILES: ${{ steps.pkg.outputs.file_count }}
+          SIZE_KB: ${{ steps.pkg.outputs.size_kb }}
         run: |
-          # Zippe alle Dateien im Repository außer .git und .github Ordnern
-          zip -r extension.zip . -x "*.git*" "*node_modules*" "*.env*" "*extension.zip"
+          publish=true
+          reason="started manually"
+          if [ "$DRY_RUN" = "true" ]; then
+            publish=false
+            reason="dry run requested"
+          elif [ "$EVENT" = "push" ]; then
+            reason="no earlier commit to compare with, treating it as a release"
+            if ! [[ "$BEFORE" =~ ^0+$ ]] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              PREV=$(git show "${BEFORE}:manifest.json" 2>/dev/null | node -e '
+                let d = "";
+                process.stdin.on("data", c => d += c).on("end", () => {
+                  try { console.log(JSON.parse(d.replace(/^\uFEFF/, "")).version || ""); } catch { console.log(""); }
+                });')
+              if [ "$PREV" = "$VERSION" ]; then
+                publish=false
+                reason="manifest version is still $VERSION - bump it to release"
+              else
+                reason="version ${PREV:-none} -> $VERSION"
+              fi
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
 
-      - name: Upload and Publish to Chrome Web Store
-        run: |
-          npx chrome-webstore-upload-cli@3.2.0 upload \
-            --source extension.zip \
-            --extension-id "${{ secrets.CHROME_EXTENSION_ID }}" \
-            --client-id "${{ secrets.CHROME_CLIENT_ID }}" \
-            --client-secret "${{ secrets.CHROME_CLIENT_SECRET }}" \
-            --refresh-token "${{ secrets.CHROME_REFRESH_TOKEN }}" \
-            --auto-publish
+          if [ "$publish" = "true" ]; then
+            echo "::notice::Publishing v$VERSION ($reason)"
+          else
+            echo "::notice::Not publishing: $reason"
+          fi
+          {
+            echo "### $NAME v$VERSION"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Package | $FILES files, $SIZE_KB KB |"
+            echo "| Decision | **$([ "$publish" = "true" ] && echo publish || echo skip)** - $reason |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Notify Portfolio Repository
+      - name: Keep the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-package
+          path: extension.zip
+          retention-days: 30
+
+  chrome:
+    name: Chrome Web Store
+    needs: package
+    if: needs.package.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.upload.outputs.published }}
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-package
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Google replaced the Chrome Web Store API in October 2025 and planned to retire
+      # the old one (v1.1) on 2026-10-15. CLI 4.x talks to the new API and needs the
+      # publisher ID in addition to the OAuth credentials; without CHROME_PUBLISHER_ID
+      # this falls back to the old CLI so a release is still attempted.
+      - name: Upload and publish
+        id: upload
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          VERSION: ${{ needs.package.outputs.version }}
         run: |
-          # Sende ein Repository-Dispatch-Signal an das Portfolio-Repo, um Website und LinkedIn zu triggern
-          curl -L \
-            -X POST \
+          echo "published=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$EXTENSION_ID" ] || [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ] || [ -z "$REFRESH_TOKEN" ]; then
+            echo "::warning::Chrome Web Store credentials are not configured - skipping Chrome."
+            echo "- Chrome Web Store: **skipped** (no credentials)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          set +e
+          if [ -n "$PUBLISHER_ID" ]; then
+            OUTPUT=$(npx --yes chrome-webstore-upload-cli@4.0.2 upload --source extension.zip --extension-id "$EXTENSION_ID" 2>&1 \
+              && npx --yes chrome-webstore-upload-cli@4.0.2 publish --extension-id "$EXTENSION_ID" 2>&1)
+            CODE=$?
+          else
+            echo "::warning::CHROME_PUBLISHER_ID is not set. Using the legacy API (v1.1), which Google planned to retire on 2026-10-15. Add the secret to switch to the current API."
+            OUTPUT=$(npx --yes chrome-webstore-upload-cli@3.2.0 upload --source extension.zip \
+              --extension-id "$EXTENSION_ID" --client-id "$CLIENT_ID" \
+              --client-secret "$CLIENT_SECRET" --refresh-token "$REFRESH_TOKEN" --auto-publish 2>&1)
+            CODE=$?
+          fi
+          set -e
+          echo "$OUTPUT"
+
+          if [ $CODE -eq 0 ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "- Chrome Web Store: v$VERSION submitted for review" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if echo "$OUTPUT" | grep -q -E "PKG_INVALID_VERSION_NUMBER"; then
+            echo "::notice::The Chrome Web Store already has a version >= $VERSION. Nothing to upload."
+            echo "- Chrome Web Store: already up to date" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if echo "$OUTPUT" | grep -q -E "ITEM_NOT_UPDATABLE|pending review|in review"; then
+            echo "::error::The previous submission is still in review, so v$VERSION was NOT uploaded. Re-run this workflow once the review has finished."
+          else
+            echo "::error::Chrome Web Store upload failed (exit code $CODE). See the log above."
+          fi
+          echo "- Chrome Web Store: **failed**" >> "$GITHUB_STEP_SUMMARY"
+          exit $CODE
+
+  edge:
+    name: Microsoft Edge Add-ons
+    needs: package
+    if: needs.package.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.upload.outputs.published }}
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-package
+
+      # Edge Add-ons Update REST API v1.1: Client ID plus API key. Create both at
+      # Partner Center > Microsoft Edge > Publish API; the product ID is on the
+      # extension's overview page. The API key expires after about 72 days - when
+      # it lapses this job fails with 401, so renew it and update EDGE_API_KEY.
+      #
+      # Only extensions that already exist in Edge Add-ons can be updated this way;
+      # without the three secrets the job is skipped, so repos that are not on Edge
+      # are unaffected.
+      - name: Upload and publish
+        id: upload
+        env:
+          PRODUCT: ${{ secrets.EDGE_PRODUCT_ID }}
+          CLIENT: ${{ secrets.EDGE_CLIENT_ID }}
+          KEY: ${{ secrets.EDGE_API_KEY }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          echo "published=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$PRODUCT" ] || [ -z "$CLIENT" ] || [ -z "$KEY" ]; then
+            echo "::notice::Edge Add-ons secrets are not configured - skipping Edge."
+            echo "- Microsoft Edge: not configured" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          API="https://api.addons.microsoftedge.microsoft.com"
+          AUTH="Authorization: ApiKey $KEY"
+          CID="X-ClientID: $CLIENT"
+
+          # Polls one long-running operation until it reports Succeeded. Anything else
+          # ends the job - a silent failure here would look like a successful release.
+          wait_for() {
+            local url="$1" label="$2" body status
+            for _ in $(seq 1 60); do
+              body=$(curl -sS -H "$AUTH" -H "$CID" "$url")
+              status=$(echo "$body" | jq -r '.status // "Unknown"' 2>/dev/null || echo "Unknown")
+              case "$status" in
+                Succeeded) echo "$label: succeeded"; return 0 ;;
+                InProgress|Unknown) sleep 10 ;;
+                *) echo "$body"; echo "::error::$label reported status '$status'."; return 1 ;;
+              esac
+            done
+            echo "::error::$label did not finish within 10 minutes."
+            return 1
+          }
+
+          # The operation id arrives in the Location header, not in the body.
+          operation_id() { tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2}'; }
+
+          fail() { echo "- Microsoft Edge: **failed**" >> "$GITHUB_STEP_SUMMARY"; exit 1; }
+
+          echo "Uploading package..."
+          HEADERS=$(curl -sS -D - -o /dev/null -X POST -H "$AUTH" -H "$CID" \
+            -H "Content-Type: application/zip" --data-binary @extension.zip \
+            "$API/v1/products/$PRODUCT/submissions/draft/package")
+          OP=$(echo "$HEADERS" | operation_id)
+          if [ -z "$OP" ]; then
+            echo "$HEADERS"
+            echo "::error::Package upload did not return an operation id. A 401 means the API key has expired."
+            fail
+          fi
+          wait_for "$API/v1/products/$PRODUCT/submissions/draft/package/operations/$OP" "Package upload" || fail
+
+          echo "Publishing submission..."
+          HEADERS=$(curl -sS -D - -o /dev/null -X POST -H "$AUTH" -H "$CID" \
+            -H "Content-Type: application/json" \
+            -d "{\"notes\":\"Automated release of v$VERSION\"}" \
+            "$API/v1/products/$PRODUCT/submissions")
+          OP=$(echo "$HEADERS" | operation_id)
+          if [ -z "$OP" ]; then
+            echo "$HEADERS"
+            echo "::error::Publish request did not return an operation id."
+            fail
+          fi
+          wait_for "$API/v1/products/$PRODUCT/submissions/operations/$OP" "Publish" || fail
+
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "- Microsoft Edge: v$VERSION submitted for certification" >> "$GITHUB_STEP_SUMMARY"
+
+  portfolio:
+    name: Notify portfolio
+    needs: [package, chrome, edge]
+    # Only when a store really accepted a new version - this triggers the website and
+    # LinkedIn posts, so a skipped or already-live release must not fire it.
+    if: >-
+      always() && needs.package.outputs.publish == 'true' &&
+      (needs.chrome.outputs.published == 'true' || needs.edge.outputs.published == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+
+      - name: Send dispatch event
+        env:
+          PAT: ${{ secrets.PORTFOLIO_PAT }}
+          NAME: ${{ needs.package.outputs.name }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          if [ -z "$PAT" ]; then
+            echo "::notice::PORTFOLIO_PAT is not set - skipping the portfolio notification."
+            exit 0
+          fi
+          jq -n \
+            --arg ext "$(basename "$GITHUB_REPOSITORY")" \
+            --arg name "$NAME" \
+            --arg version "$VERSION" \
+            --arg commits "$(git log -n 5 --oneline)" \
+            '{event_type: "extension_update",
+              client_payload: {extension_name: $ext, display_name: $name, version: $version, commits: $commits, is_new: false}}' \
+            > payload.json
+          # A failed notification must not turn a successful release red.
+          curl -fsS -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.PORTFOLIO_PAT }}" \
+            -H "Authorization: Bearer $PAT" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/exUs541/portfolio/dispatches \
-            -d '{
-              "event_type": "extension_update",
-              "client_payload": {
-                "extension_name": "${{ steps.meta.outputs.repo_name }}",
-                "display_name": "${{ steps.meta.outputs.name }}",
-                "version": "${{ steps.meta.outputs.version }}",
-                "commits": ${{ steps.meta.outputs.commits }},
-                "is_new": false
-              }
-            }'
+            -d @payload.json \
+            || echo "::warning::Could not notify the portfolio repository."
