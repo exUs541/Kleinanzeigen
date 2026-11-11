@@ -31,7 +31,17 @@ const DEFAULT_SETTINGS = {
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 
+const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5zM11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H2.5a.5.5 0 0 0 0 1H3v9.5A1.5 1.5 0 0 0 4.5 14h7A1.5 1.5 0 0 0 13 12.5V3.5h.5a.5.5 0 0 0 0-1H11z"/></svg>';
+
+// Names, titles and categories come from kleinanzeigen.de, so they are never trusted as HTML.
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('version').textContent = 'v' + chrome.runtime.getManifest().version;
     initTabs();
     await loadSettings();
     await updateUI();
@@ -43,10 +53,14 @@ function initTabs() {
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
             const targetId = tab.dataset.tab;
             document.getElementById(targetId).classList.add('active');
         });
@@ -141,7 +155,7 @@ function bindSettingsControls() {
 
     // Add snippet button
     document.getElementById('add-snippet-btn').onclick = async () => {
-        currentSettings.chatSnippets.push("Neues Snippet...");
+        currentSettings.chatSnippets.push("Neue Antwort");
         await saveSettings();
         renderSnippetsList();
     };
@@ -175,7 +189,7 @@ function bindSettingsControls() {
 function renderBlockedList(blocked) {
     const list = document.getElementById('blocked-list');
     if (blocked.length === 0) {
-        list.innerHTML = '<div class="empty-state">Keine User blockiert</div>';
+        list.innerHTML = '<div class="empty-state">Keine Verkäufer blockiert</div>';
         return;
     }
 
@@ -184,8 +198,8 @@ function renderBlockedList(blocked) {
         const item = document.createElement('div');
         item.className = 'list-item';
         item.innerHTML = `
-            <span class="list-item-title">${user.name}</span>
-            <button class="btn-icon unblock-btn" data-id="${user.id}">Entsperren</button>
+            <span class="list-item-title" title="${escapeHtml(user.name)}">${escapeHtml(user.name)}</span>
+            <button class="btn-icon unblock-btn" data-id="${escapeHtml(user.id)}">Entsperren</button>
         `;
         list.appendChild(item);
     });
@@ -221,13 +235,11 @@ function renderTemplatesList(templates) {
 
         item.innerHTML = `
             <div class="template-row">
-                <span class="list-item-title" style="font-weight:600;">${tpl.title || 'Ohne Titel'}</span>
-                <div>
-                    <button class="btn-icon delete-tpl-btn" data-index="${index}">🗑️</button>
-                </div>
+                <span class="list-item-title">${escapeHtml(tpl.title || 'Ohne Titel')}</span>
+                <button class="btn-icon delete-tpl-btn" data-index="${index}" title="Vorlage löschen" aria-label="Vorlage löschen">${ICON_TRASH}</button>
             </div>
             <div class="template-details">
-                <span>Kategorie: ${tpl.category || 'Unbekannt'}</span> | <span>Preis: ${priceText}</span>
+                ${escapeHtml(tpl.category || 'Unbekannt')} · ${escapeHtml(priceText)}
             </div>
         `;
         list.appendChild(item);
@@ -251,7 +263,7 @@ function renderTemplatesList(templates) {
 function renderSnippetsList() {
     const list = document.getElementById('snippets-list');
     if (!currentSettings.chatSnippets || currentSettings.chatSnippets.length === 0) {
-        list.innerHTML = '<div class="empty-state">Keine Snippets vorhanden</div>';
+        list.innerHTML = '<div class="empty-state">Keine Antworten vorhanden</div>';
         return;
     }
 
@@ -260,8 +272,8 @@ function renderSnippetsList() {
         const item = document.createElement('div');
         item.className = 'snippet-item';
         item.innerHTML = `
-            <input type="text" class="snippet-input" value="${snippet.replace(/"/g, '&quot;')}" data-index="${index}">
-            <button class="btn-icon delete-snippet-btn" data-index="${index}">🗑️</button>
+            <input type="text" class="snippet-input" value="${escapeHtml(snippet)}" data-index="${index}" aria-label="Chat-Antwort ${index + 1}">
+            <button class="btn-icon delete-snippet-btn" data-index="${index}" title="Antwort löschen" aria-label="Antwort löschen">${ICON_TRASH}</button>
         `;
         list.appendChild(item);
     });
