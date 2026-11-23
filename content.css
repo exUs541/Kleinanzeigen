@@ -106,6 +106,13 @@
     display: none !important;
 }
 
+/* Ad slot that is a cell of the page grid: the cell keeps its place in the layout
+   (display:none would shift the page content), only its content is hidden. */
+.ka-ad-collapsed {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
 /* Image Preview Previews */
 .ka-image-preview-dots {
     display: flex;

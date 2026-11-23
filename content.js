@@ -103,11 +103,56 @@ function processPage() {
  * SEARCH LISTS & INDEX PAGE HELPERS
  * ==========================================
  */
+/**
+ * Real ad containers only. Generic patterns such as [class*="banner"] must not be used here:
+ * they also match the page frame (the side columns "site-base--left-banner" and
+ * "site-base--right-banner" are cells of the page grid) and the cookie consent dialog.
+ */
+const AD_SLOT_SELECTORS = [
+    '[data-liberty-position-name]',   // ad slots between the listings and above the results
+    '.sticky-advertisement',          // skyscrapers left and right of the page
+    '#viewad-sidebar-banner',         // banner in the sidebar of the detail page
+    '.outbrain', '.google-ad', 'div[class*="advertisement"]', 'iframe[id*="google_ads"]',
+    '.ad-placeholder', 'div[id*="ad-slot"]', 'ins.adsbygoogle', '.banner-desktop',
+    '.banner-mobile', 'div.ad-item', '.badvertisement', '.srchrslt-adtable-featured'
+];
+
+// Consent dialog and dialogs in general are never hidden.
+const PROTECTED_SELECTOR = '[id*="gdpr"], [class*="gdpr"], [id*="consent"], [class*="consent"], ' +
+                           '[id*="cookie"], [class*="cookie"], [role="dialog"], [aria-modal="true"]';
+
+function canHideAdSlot(el) {
+    if (el === document.body || el === document.documentElement) return false;
+    if (el.closest(PROTECTED_SELECTOR)) return false;
+    // Anything that holds real page content is not an ad slot.
+    return !el.querySelector('main, form, input, select, textarea, article[data-adid], article.aditem');
+}
+
+function hideAdSlot(el) {
+    if (el.dataset.kaAdChecked) return;
+    el.dataset.kaAdChecked = 'true';
+    if (!canHideAdSlot(el)) return;
+
+    // A cell of a CSS grid must keep its place: with display:none the neighbouring cells slide
+    // into its column and the whole page shifts. visibility:hidden only removes the content.
+    const parent = el.parentElement;
+    const isGridCell = !!parent && getComputedStyle(parent).display.includes('grid');
+    el.classList.add(isGridCell ? 'ka-ad-collapsed' : 'ka-hidden');
+}
+
+// Search result pages (and seller listings) - not ad detail pages, which only show a few similar ads.
+function isSearchResultsPage() {
+    const path = window.location.pathname;
+    return path.startsWith('/s-') && !path.startsWith('/s-anzeige');
+}
+
 function handleAdLists() {
     if (!isInitialized) return;
-    
+
+    const onSearchPage = isSearchResultsPage();
+
     // Set up Infinite Scroll dynamically when container is ready in DOM
-    if (settings.enableInfiniteScroll && !infiniteScrollInitialized) {
+    if (onSearchPage && settings.enableInfiniteScroll && !infiniteScrollInitialized) {
         const container = getAdContainer();
         if (container) {
             infiniteScrollInitialized = true;
@@ -117,26 +162,27 @@ function handleAdLists() {
 
     const parentContainer = getAdContainer();
 
-    // Hide ad placeholders / banner elements in search table
+    // Hide ad placeholders / banner rows between the listings. Rows with a listing or with
+    // real content (links, buttons, text) are left alone.
     if (parentContainer) {
-        const listItems = Array.from(parentContainer.children);
-        listItems.forEach(li => {
-            const hasArticle = li.querySelector('article[data-adid], article.aditem') || 
-                               li.tagName === 'ARTICLE' || 
+        Array.from(parentContainer.children).forEach(li => {
+            const hasArticle = li.querySelector('article[data-adid], article.aditem') ||
+                               li.tagName === 'ARTICLE' ||
                                li.classList.contains('aditem');
-                               
-            const hasClassBanner = li.className.includes('banner') || 
-                                   li.className.includes('placeholder') || 
-                                   li.className.includes('advertisement') || 
-                                   li.id.includes('banner') || 
+            if (hasArticle) return;
+
+            const hasClassBanner = li.className.includes('banner') ||
+                                   li.className.includes('placeholder') ||
+                                   li.className.includes('advertisement') ||
+                                   li.id.includes('banner') ||
                                    li.id.includes('ad-');
-                                   
-            const hasInnerAd = li.querySelector('iframe, div[class*="banner"], div[class*="ad-"], div[id*="banner"], div[id*="ad-"], div[class*="placeholder"]');
+
+            const hasInnerAd = li.querySelector('iframe, [data-liberty-position-name], [data-liberty-subarea], div[class*="banner"], div[class*="ad-"], div[id*="banner"], div[id*="ad-"], div[class*="placeholder"]');
             const text = li.textContent.trim();
             const hasLogoText = text.toLowerCase() === 'kleinanzeigen' || (text.toLowerCase().includes('anzeige') && text.length < 50 && !li.querySelector('a'));
-            
-            // If it doesn't contain a valid listing article, or is flagged as an ad, hide it!
-            if (!hasArticle || hasClassBanner || (hasInnerAd && !li.querySelector('article')) || (hasLogoText && !hasArticle)) {
+            const isEmptyRow = !text && !li.querySelector('a, button, input, select, textarea');
+
+            if (hasClassBanner || hasInnerAd || hasLogoText || isEmptyRow) {
                 li.style.display = 'none';
                 li.classList.add('ka-hidden');
             }
@@ -145,22 +191,13 @@ function handleAdLists() {
 
     // Hide general page ad boxes (outside listings)
     if (settings.hideSponsored) {
-        const adSelectors = [
-            '.outbrain', '.google-ad', 'div[class*="banner"]', 'div[id*="banner"]',
-            'div[class*="advertisement"]', 'iframe[id*="google_ads"]', '.ad-placeholder',
-            'div[id*="ad-slot"]', 'ins.adsbygoogle', '.banner-desktop', '.banner-mobile',
-            'div.ad-item', '.badvertisement', '.srchrslt-adtable-featured'
-        ];
-        adSelectors.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-                el.style.display = 'none';
-                el.classList.add('ka-hidden');
-            });
+        AD_SLOT_SELECTORS.forEach(sel => {
+            document.querySelectorAll(sel).forEach(hideAdSlot);
         });
     }
 
-    // 1. Inject search exporter button if list exists and button not present
-    if (parentContainer && !document.getElementById('ka-export-results-btn')) {
+    // 1. Inject search exporter button if list exists and button not present (search pages only)
+    if (onSearchPage && parentContainer && !document.getElementById('ka-export-results-btn')) {
         injectExporterButton();
     }
 
