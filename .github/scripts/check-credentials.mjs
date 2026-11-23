@@ -155,10 +155,11 @@ async function checkChrome(manifest) {
 // ── Microsoft Edge Add-ons ───────────────────────────────────────────────────
 async function checkEdge() {
   const product = env('EDGE_PRODUCT_ID'), client = env('EDGE_CLIENT_ID'), key = env('EDGE_API_KEY');
-  const present = [product, client, key].filter(Boolean).length;
-  if (present === 0) return result('Edge', 'skip', 'Not on Edge yet (no EDGE_* secrets).');
-  if (present < 3) {
-    const missing = ['EDGE_PRODUCT_ID', 'EDGE_CLIENT_ID', 'EDGE_API_KEY'].filter((k) => !env(k));
+  // The client ID and API key belong to the account and may be set in every repository;
+  // only the product ID says that this extension actually exists on Edge.
+  if (!product) return result('Edge', 'skip', 'Not on Edge yet (no EDGE_PRODUCT_ID).');
+  if (!client || !key) {
+    const missing = ['EDGE_CLIENT_ID', 'EDGE_API_KEY'].filter((k) => !env(k));
     return result('Edge', 'fail', `Incomplete: missing ${missing.join(', ')}.`);
   }
 
