@@ -53,9 +53,18 @@ async function init() {
             STORAGE_KEYS.HIDDEN_ADS,
             STORAGE_KEYS.SEEN_ADS,
             STORAGE_KEYS.TEMPLATES,
-            STORAGE_KEYS.NOTES
+            STORAGE_KEYS.NOTES,
+            'extensionEnabled'
         ]);
         
+        // Master switch (popup toggle): while it is off nothing below runs, so the page stays
+        // exactly as Kleinanzeigen made it. isInitialized stays false, which keeps the
+        // MutationObserver and handleAdLists() idle as well.
+        if (data.extensionEnabled === false) {
+            console.log("KA Plus: switched off, doing nothing.");
+            return;
+        }
+
         settings = { ...DEFAULT_SETTINGS, ...data[STORAGE_KEYS.SETTINGS] };
         blockedUsers = data[STORAGE_KEYS.BLOCKED_USERS] || [];
         hiddenAds = data[STORAGE_KEYS.HIDDEN_ADS] || [];
@@ -1369,6 +1378,41 @@ const observer = new MutationObserver((mutations) => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+
+// The switch is read once per page load. When it changes while this tab is open, a small hint
+// offers to reload the page (never reloads by itself: the user may be writing an ad or a message).
+function showSwitchBanner(isOn) {
+    document.getElementById('ka-switch-banner')?.remove();
+    const bar = document.createElement('div');
+    bar.id = 'ka-switch-banner';
+    bar.setAttribute('role', 'status');
+    bar.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
+        'display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:#1f2937;color:#fff;' +
+        'font:14px/1.4 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+    const text = document.createElement('span');
+    text.textContent = isOn
+        ? 'Kleinanzeigen Plus ist jetzt an. Seite neu laden, damit es wirkt.'
+        : 'Kleinanzeigen Plus ist jetzt aus. Seite neu laden, damit es wirkt.';
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.textContent = 'Neu laden';
+    reload.style.cssText = 'padding:4px 10px;border:0;border-radius:6px;background:#a3d63f;color:#10150a;font:inherit;font-weight:600;cursor:pointer;';
+    reload.addEventListener('click', () => location.reload());
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '\u00d7';
+    close.setAttribute('aria-label', 'Schließen');
+    close.style.cssText = 'padding:0 4px;border:0;background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer;';
+    close.addEventListener('click', () => bar.remove());
+    bar.append(text, reload, close);
+    (document.body || document.documentElement).appendChild(bar);
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.extensionEnabled) {
+        showSwitchBanner(changes.extensionEnabled.newValue !== false);
+    }
+});
 
 // Initial execute
 init();

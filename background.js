@@ -34,3 +34,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     return true;
 });
+
+// Master switch (popup toggle, chrome.storage.local, on by default): while it is off the
+// toolbar badge shows OFF.
+function applyBadge(enabled) {
+    chrome.action.setBadgeText({ text: enabled ? '' : 'OFF' });
+    if (!enabled) chrome.action.setBadgeBackgroundColor({ color: '#6b7280' });
+}
+
+async function syncBadge() {
+    const { extensionEnabled } = await chrome.storage.local.get('extensionEnabled');
+    applyBadge(extensionEnabled !== false);
+}
+
+chrome.runtime.onInstalled.addListener(syncBadge);
+chrome.runtime.onStartup.addListener(syncBadge);
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.extensionEnabled) applyBadge(changes.extensionEnabled.newValue !== false);
+});
