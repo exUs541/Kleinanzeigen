@@ -377,15 +377,23 @@ function injectListingControls(ad, adId, userId, userName, mapLink) {
         controls.appendChild(mapBtn);
     }
 
-    mainContent.appendChild(controls);
+    // Without block/map buttons the container would only add an empty gap below every listing.
+    if (controls.children.length > 0) {
+        mainContent.appendChild(controls);
+    }
 }
 
 function injectNoteToListing(ad, noteText) {
-    const mainContent = ad.querySelector('.aditem-main') || ad;
+    // The card is a flex row (image | text). The note belongs below the text column,
+    // not next to it as a third column.
+    const mainContent = ad.querySelector('.aditem-main') || ad.children[1] || ad;
     if (!mainContent.querySelector('.ka-list-note')) {
         const noteDiv = document.createElement('div');
         noteDiv.className = 'ka-list-note';
-        noteDiv.innerHTML = `<strong>Meine Notiz:</strong> ${noteText}`;
+        // Notes are user input: always insert them as text, never as HTML.
+        const label = document.createElement('strong');
+        label.textContent = 'Meine Notiz:';
+        noteDiv.append(label, ' ', document.createTextNode(noteText));
         mainContent.appendChild(noteDiv);
     }
 }

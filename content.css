@@ -241,6 +241,7 @@
     border: 1px solid var(--ka-border);
     border-radius: 12px;
     padding: 16px;
+    margin-top: 12px;
     margin-bottom: 20px;
     box-shadow: var(--ka-shadow);
 }
