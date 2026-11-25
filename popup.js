@@ -46,7 +46,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSettings();
     await updateUI();
     bindSettingsControls();
+    await initMasterSwitch();
 });
+
+// 0. Master switch: while it is off the content script does nothing on kleinanzeigen.de.
+// The content script reads the switch when a page loads, so a tab that is already open shows
+// a small "reload" hint of its own as soon as the switch changes.
+async function initMasterSwitch() {
+    const toggle = document.getElementById('master-toggle');
+    const note = document.getElementById('off-note');
+    const noteText = document.getElementById('off-note-text');
+    let changed = false;
+
+    const render = (on) => {
+        toggle.checked = on;
+        document.body.classList.toggle('ext-off', !on);
+        document.querySelector('.tabs-nav').inert = !on;
+        document.querySelector('main').inert = !on;
+        document.querySelector('.footer').inert = !on;
+        note.hidden = on && !changed;
+        noteText.textContent = on
+            ? 'Kleinanzeigen Plus ist an. Geöffnete Seiten brauchen einmal "Neu laden".'
+            : 'Kleinanzeigen Plus ist aus. Die Seiten bleiben, wie Kleinanzeigen sie zeigt.';
+    };
+
+    const stored = await chrome.storage.local.get('extensionEnabled');
+    render(stored.extensionEnabled !== false);
+    toggle.addEventListener('change', async () => {
+        changed = true;
+        await chrome.storage.local.set({ extensionEnabled: toggle.checked });
+        render(toggle.checked);
+    });
+}
 
 // 1. Tab Switching Logic
 function initTabs() {

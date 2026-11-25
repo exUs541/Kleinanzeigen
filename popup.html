@@ -12,8 +12,18 @@
             <span class="mark" aria-hidden="true">K+</span>
             <h1>Kleinanzeigen Plus</h1>
         </div>
-        <span class="version" id="version">v1.1.1</span>
+        <div class="header-actions">
+            <span class="version" id="version">v1.2.0</span>
+            <label class="master-switch" title="Kleinanzeigen Plus ein- oder ausschalten">
+                <input type="checkbox" id="master-toggle" role="switch" aria-label="Kleinanzeigen Plus ein- oder ausschalten" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </header>
+
+    <div id="off-note" class="off-note" role="status" hidden>
+        <span id="off-note-text">Kleinanzeigen Plus ist aus.</span>
+    </div>
 
     <nav class="tabs-nav" role="tablist" aria-label="Bereiche">
         <button class="tab-btn active" data-tab="tab-filter" role="tab" aria-selected="true">Filter</button>
